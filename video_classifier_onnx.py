@@ -3,11 +3,10 @@ import sys
 from pathlib import Path
 ROOT = str(Path(__file__).parent.absolute())
 sys.path.append(os.path.join(ROOT,'core'))
-import core.vision_encoder.pe as pe
+#import core.vision_encoder.pe as pe
 import core.vision_encoder.transforms as transforms
 
 from PIL import Image
-from PIL.Image import Resampling
 import torch
 import cv2
 import numpy as np
@@ -19,13 +18,13 @@ class ImagePreprocessor:
     def __init__(self, image_size, interpolation=cv2.INTER_LINEAR):
         self.image_size = image_size
         self.interpolation= interpolation
-        self.mean = np.array([0.5,0.5,0.5],dtype=np.float32).reshape(1,1,3)
-        self.std = np.array([0.5,0.5,0.5],dtype=np.float32).reshape(1,1,3)
+        #self.mean = np.array([0.5,0.5,0.5],dtype=np.float32).reshape(1,1,3)
+        #self.std = np.array([0.5,0.5,0.5],dtype=np.float32).reshape(1,1,3)
 
     def __call__(self,image):
         # This implementation to match the pytorch based implementation
         image = Image.fromarray(image).convert("RGB")
-        resized = np.array(image.resize(self.image_size,Resampling.BILINEAR)) / 255.0
+        resized = np.array(image.resize(self.image_size,Image.BILINEAR)) / 255.0
         # image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
         # resized = cv2.resize(image,
         #                      self.image_size,
@@ -145,8 +144,8 @@ def improved_bbox_extraction(
 class VideoClasifierONNX:
     def __init__(self,model_name):
 
-        # self.video_model = ONNXRuntimeSession("pecore_b16_224_sim.onnx",mode="image")
-        self.video_model = ONNXRuntimeSession("PE-Core-B16-224.onnx",mode="image")
+        self.video_model = ONNXRuntimeSession("pecore_b16_224_sim.onnx",mode="image")
+        #self.video_model = ONNXRuntimeSession("PE-Core-B16-224.onnx",mode="image")
         self.text_model = ONNXRuntimeSession("text_PE-Core-B16-224.onnx")
         self.img_size = (224,224) 
         self.context_length = 32 

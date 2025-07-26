@@ -1,11 +1,11 @@
 import os
 import cv2
-import matplotlib.pyplot as plt
-from video_classifier import VideoClasifier
+#import matplotlib.pyplot as plt
+#from video_classifier import VideoClasifier
 from video_classifier_onnx import VideoClasifierONNX
 USE_MATPLOTLIB = False
 import numpy as np
-backends = ['Qt5Agg', 'TkAgg', 'Agg']
+#backends = ['Qt5Agg', 'TkAgg', 'Agg']
 
 if USE_MATPLOTLIB:
     import matplotlib
@@ -135,9 +135,11 @@ if __name__ == "__main__":
     # video_classifier = VideoClasifier(model_name)
     # video_classifier.encode_labes(captions)
     # ONNX
+    print("LOADING MODELS IN VIDEO CLASSIFIER...")
     video_classifier_onnx = VideoClasifierONNX(model_name)
+    print("VIDEO CLASSIFIER LOADED SUCCESSFULLY ...")
     video_classifier_onnx.encode_labes(captions)
-    
+    print("Labels encoded successfully start the video capture!!")
     video_path="./apps/pe/docs/assets/fi001.mp4"
     video_path="./test_fighting.mp4"
     video_path="./Street fighting.mp4"
