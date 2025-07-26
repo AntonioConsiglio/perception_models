@@ -83,7 +83,7 @@ class ImagePreprocessor:
 #             result[i, : len(tokens)] = np.array(tokens)
 
 #         return result
-
+ort.set_default_logger_severity(ort.NodeSeverity.VERBOSE)
 class ONNXRuntimeSession:
     def __init__(self, model_path: str, mode = "text", providers: Optional[list] = None):
         self.mode = mode
