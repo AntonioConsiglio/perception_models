@@ -1,9 +1,10 @@
 import os
 import cv2
 import matplotlib.pyplot as plt
-from live_stream_action_detection import VideoClasifier
-USE_MATPLOTLIB = True
-
+from video_classifier import VideoClasifier
+from video_classifier_onnx import VideoClasifierONNX
+USE_MATPLOTLIB = False
+import numpy as np
 backends = ['Qt5Agg', 'TkAgg', 'Agg']
 
 if USE_MATPLOTLIB:
@@ -12,31 +13,6 @@ if USE_MATPLOTLIB:
     os.environ["QT_QPA_PLATFORM"]="offscreen"
     matplotlib.use('TkAgg')
     from matplotlib.backend_bases import MouseButton,KeyEvent,MouseEvent
-
-def imshow(image, title="Image", figsize=(10, 8), cmap=None):
-    """
-    Display image using matplotlib instead of cv2.imshow()
-    
-    Args:
-        image: OpenCV image (BGR format)
-        title: Window title
-        figsize: Figure size (width, height)
-        cmap: Colormap for grayscale images
-    """
-    plt.figure(figsize=figsize)
-    
-    if len(image.shape) == 3:
-        # Convert BGR to RGB for matplotlib
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        plt.imshow(image_rgb)
-    else:
-        # Grayscale image
-        plt.imshow(image, cmap=cmap or 'gray')
-    
-    plt.title(title)
-    plt.axis('off')
-    plt.show()
-
 
 class VideoGenerator:
     def __init__(self, cap, output_path, alpha=0.5, show_display=False):
@@ -64,11 +40,11 @@ class VideoGenerator:
         height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         self.out = cv2.VideoWriter(self.output_path, fourcc, fps, (width, height))
-        if self.show_display:
+        if self.show_display and USE_MATPLOTLIB:
             self._init_display()
         return self
 
-    def add_frame(self, frame, heatmap_colored, bounding_boxes, predicted_class):
+    def add_frame(self, frame, heatmap_colored, bounding_boxes, predicted_class, confidence, frame_name):
         overlay = cv2.addWeighted(frame, 1 - self.alpha, heatmap_colored, self.alpha, 0)
 
         # Draw bounding box
@@ -76,7 +52,7 @@ class VideoGenerator:
         cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 255, 0), 3)
 
         # Draw class text with background rectangle
-        text = predicted_class
+        text = f"{predicted_class} : {confidence:.2f}"
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.8
         thickness = 2
@@ -99,69 +75,112 @@ class VideoGenerator:
         self.out.write(overlay)
 
         if self.show_display:
-            img_rgb = cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB)
-            self.img_display.set_data(img_rgb)
-            self.fig.canvas.draw_idle()
-            plt.pause(0.001)  # Small pause to update display
+            if USE_MATPLOTLIB:
+                img_rgb = cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB)
+                self.img_display.set_data(img_rgb)
+                self.fig.canvas.draw_idle()
+                plt.pause(0.001)  # Small pause to update display
+            else:
+                overlay = self._check_frame_shape_and_resize(overlay)
+                cv2.imshow(frame_name, overlay)
+                cv2.waitKey(1)
 
         self.frame_idx += 1
 
+    def _check_frame_shape_and_resize(self,frame):
+        ratio = 1
+        if max(frame.shape) > 1280:
+            ratio = 1280 / max(frame.shape)
+        resized = cv2.resize(frame,(0,0),fx=ratio,fy=ratio) 
+        return resized
+    
     def __exit__(self, exc_type, exc_value, traceback):
         if self.out:
             self.out.release()
         if self.show_display:
-            plt.close(self.fig)
-
+            if USE_MATPLOTLIB:
+                plt.close(self.fig)
+            else:
+                cv2.destroyAllWindows()
 # Example usage with your existing model
 if __name__ == "__main__":
 
     # Your existing setup
     model_name = 'PE-Core-B16-224' 
+    # captions = [
+    #     "a violent fight between people",
+    #     "a violent fight in the street",
+    #     "people fighting",
+    #     "people arguing and fighting",
+    #     "people walking without fighting",
+    #     "people talking calmly",
+    #     "a peaceful conversation",
+    #     "people standing without fighting",
+    #     "people interacting peacefully",
+    #     "people drinking water",
+    #     "people drinking using a cup",
+    #     "no people making actions"
+    # ]
     captions = [
-        "a violent fight between people",
-        "a violent fight in the street",
-        "people fighting",
-        "people arguing and fighting",
-        "people walking without fighting",
-        "people talking calmly",
-        "a peaceful conversation",
-        "people standing without fighting",
-        "people interacting peacefully"
+        "people drinking water",
+        "no people making actions",
+        "people drinking using a cup",
+        "people watching in front of the camera",
+        "people clapping the hands",
+        "people using the smarthphone",
+        "people reading a book"
     ]
 
 
-    video_classifier = VideoClasifier(model_name)
-    video_classifier.encode_labes(captions)
+    # video_classifier = VideoClasifier(model_name)
+    # video_classifier.encode_labes(captions)
+    # ONNX
+    video_classifier_onnx = VideoClasifierONNX(model_name)
+    video_classifier_onnx.encode_labes(captions)
     
     video_path="./apps/pe/docs/assets/fi001.mp4"
     video_path="./test_fighting.mp4"
     video_path="./Street fighting.mp4"
+    video_path = 0
     videocap = cv2.VideoCapture(video_path)
     status = True
 
     with VideoGenerator(videocap,"result_video_street.mp4",alpha=0.2,show_display=True) as vg:
-        while status:
-            status,frame = videocap.read()
-            if not status:
-                break
-            H,W,_ = frame.shape
-            results = video_classifier.classify_video(frame)
-     
-            # Print results
-            print("=" * 50)
-            print("PRODUCTION VIDEO ANALYSIS RESULTS")
-            print("=" * 50)
-            print(f"Predicted Class: {results['class_name']}")
-            print(f"Confidence: {results['confidence']:.3f}")
-            print(f"Bounding Box: {results['bounding_box']}")
-            # print(f"Spatial Coverage: {results['spatial_coverage']:.2%}")
-            # print(f"Inference Time: {results['inference_time']:.3f}s")
-            print(f"All Probabilities: {[f'{p:.3f}' for p in results['all_probabilities']]}")
+        with VideoGenerator(videocap,"result_video_street_onnx.mp4",alpha=0.3,show_display=True) as vg_onnx:
+            while status:
+                status,frame = videocap.read()
+                if not status:
+                    break
+                H,W,_ = frame.shape
+                # results = video_classifier.classify_video(frame)
+                results_onnx = video_classifier_onnx.classify_video(frame)
+        
+                # Print results
+                # print("=" * 50)
+                # print("PRODUCTION VIDEO ANALYSIS RESULTS")
+                # print("=" * 50)
+                # print(f"Predicted Class: {results['class_name']}")
+                # print(f"Confidence: {results['confidence']:.3f}")
+                # print(f"Bounding Box: {results['bounding_box']}")
+                # # print(f"Spatial Coverage: {results['spatial_coverage']:.2%}")
+                # # print(f"Inference Time: {results['inference_time']:.3f}s")
+                # print(f"All Probabilities: {[f'{p:.3f}' for p in results['all_probabilities']]}")
 
-            vg.add_frame(
-                frame,
-                results['heatmap'],
-                results['bounding_box'],
-                results['class_name']
-            )
+
+                # vg.add_frame(
+                #     frame,
+                #     results['heatmap'],
+                #     results['bounding_box'],
+                #     results['class_name'],
+                #     results["confidence"],
+                #     "Pytorch_results"
+                # )
+                vg_onnx.add_frame(
+                    frame,
+                    results_onnx['heatmap'],
+                    results_onnx['bounding_box'],
+                    results_onnx['class_name'],
+                    results_onnx["confidence"],
+                    "ONNX_results"
+                )
 

@@ -60,6 +60,7 @@ class VideoClasifier:
         self.text_label = None
         self.frames_bank = []
         self.patch_bank = []
+        self.latest_image_tensor = None
 
     def encode_labes(self, labels:List[str]):
         self.text_label = labels
@@ -69,7 +70,7 @@ class VideoClasifier:
             self.labels = F.normalize(encoded_labels, dim=-1)
     
     def process_frame(self,frame:np.ndarray):
-        rgb_image = Image.fromarray(cv2.cvtColor(frame,cv2.COLOR_BGR2RGB))
+        rgb_image = Image.fromarray(frame)
         image_tensors = self.preprocess(rgb_image)
         image_tensors = image_tensors.unsqueeze(0).to(self.device)
         frame_features, patch = self.model.encode_image(image_tensors)
