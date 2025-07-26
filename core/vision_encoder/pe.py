@@ -530,23 +530,18 @@ class VisionTransformer(nn.Module):
         if strip_cls_token and self.use_cls_token:
             x = x[:, 1:, :]
 
-        return x
+        return x, x[:, 1:, :], (grid_w,grid_h)
 
     def forward(self, x: torch.Tensor, **kwargs):
-        x = self.forward_features(x, norm=True, **kwargs)
+        x, patch, (grid_w,grid_h) = self.forward_features(x, norm=True, **kwargs)
         x = self._pool(x)
 
         if self.proj_dim is not None:
             x = x @ self.proj
+            patch = patch @ self.proj
+            F.normalize(patch, dim=-1)
 
-        return x
-
-
-
-
-
-
-
+        return x, patch.view(1, grid_h, grid_w, -1).permute(0, 3, 1, 2)
 
 
 class TextTransformer(nn.Module):
@@ -711,16 +706,16 @@ class CLIP(TextTransformer):
 
 
     def encode_image(self, image, normalize: bool = False):
-        x = self.visual(image)
-        return F.normalize(x, dim=-1) if normalize else x
+        x, patch = self.visual(image)
+        return F.normalize(x, dim=-1) if normalize else x, patch
 
     def encode_video(self, video, normalize: bool = False): # b n c h w
         b, n, c, h, w = video.shape
         frms = video.reshape(b * n, c, h, w)
-        frm_feats = self.encode_image(frms, normalize=normalize)
+        frm_feats, patch = self.encode_image(frms, normalize=normalize)
         video_feats = frm_feats.reshape(b, n, -1)
         video_feats = video_feats.mean(dim=1)
-        return video_feats
+        return video_feats, patch
 
     def encode_text(self, text, normalize: bool = False):
         x = super().forward(text)
