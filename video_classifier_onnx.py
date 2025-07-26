@@ -83,7 +83,7 @@ class ImagePreprocessor:
 #             result[i, : len(tokens)] = np.array(tokens)
 
 #         return result
-ort.set_default_logger_severity(ort.NodeSeverity.VERBOSE)
+ort.set_default_logger_severity(0)
 class ONNXRuntimeSession:
     def __init__(self, model_path: str, mode = "text", providers: Optional[list] = None):
         self.mode = mode
@@ -209,16 +209,19 @@ class VideoClasifierONNX:
                 selected_attention, (w, h), interpolation=cv2.INTER_LINEAR
             )
         
-        bbox, filtered_map = improved_bbox_extraction(
-                selected_attention_resized, 
-                percentile_threshold=80, # Higher threshold for more precise localization
-                method="best_region"
-            )
-        
-        heatmap_colored = cv2.applyColorMap(
-            (filtered_map * 255).astype(np.uint8), 
-            cv2.COLORMAP_JET  # Better colormap for attention
-            )
+        try:
+            bbox, filtered_map = improved_bbox_extraction(
+                    selected_attention_resized, 
+                    percentile_threshold=80, # Higher threshold for more precise localization
+                    method="best_region"
+                )
+            
+            heatmap_colored = cv2.applyColorMap(
+                (filtered_map * 255).astype(np.uint8), 
+                cv2.COLORMAP_JET  # Better colormap for attention
+                )
+        except:
+            heatmap_colored = bbox = None
         # heatmap_colored = cv2.cvtColor(heatmap_colored,cv2.COLOR_BGR2RGB)
 
         return heatmap_colored, bbox

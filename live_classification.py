@@ -45,11 +45,15 @@ class VideoGenerator:
         return self
 
     def add_frame(self, frame, heatmap_colored, bounding_boxes, predicted_class, confidence, frame_name):
-        overlay = cv2.addWeighted(frame, 1 - self.alpha, heatmap_colored, self.alpha, 0)
-
+        
+        if heatmap_colored is not None:
+            overlay = cv2.addWeighted(frame, 1 - self.alpha, heatmap_colored, self.alpha, 0)
+        else:
+            overlay = frame
         # Draw bounding box
-        x1, y1, x2, y2 = bounding_boxes
-        cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 255, 0), 3)
+        if bounding_boxes is not None:
+            x1, y1, x2, y2 = bounding_boxes
+            cv2.rectangle(overlay, (x1, y1), (x2, y2), (0, 255, 0), 3)
 
         # Draw class text with background rectangle
         text = f"{predicted_class} : {confidence:.2f}"
