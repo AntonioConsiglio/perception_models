@@ -9,4 +9,5 @@ torchinductor_*/*
 tmp*/*
 apps/plm/dummy_datasets
 pencoder/
+pecore/
 *.mp4

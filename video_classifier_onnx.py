@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = str(Path(__file__).parent.absolute())
 sys.path.append(os.path.join(ROOT,'core'))
 #import core.vision_encoder.pe as pe
-import core.vision_encoder.transforms as transforms
+# import core.vision_encoder.transforms as transforms
 
 from PIL import Image
 import torch
@@ -34,55 +34,55 @@ class ImagePreprocessor:
         transposed = np.expand_dims(normalized.transpose(2,0,1),axis=0)
         return transposed
 
-class CustomTokenizer(transforms.SimpleTokenizer):
-    def __init__(self,context_length):
-        super().__init__(context_length=context_length)
+# # class CustomTokenizer(transforms.SimpleTokenizer):
+#     def __init__(self,context_length):
+#         super().__init__(context_length=context_length)
     
-    def __call__(
-        self, texts: Union[str, List[str]], context_length: Optional[int] = None
-    ) -> np.ndarray:
-        """Returns the tokenized representation of given input string(s)
+#     def __call__(
+#         self, texts: Union[str, List[str]], context_length: Optional[int] = None
+#     ) -> np.ndarray:
+#         """Returns the tokenized representation of given input string(s)
 
-        Parameters
-        ----------
-        texts : Union[str, List[str]]
-            An input string or a list of input strings to tokenize
-        context_length : int
-            The context length to use; all CLIP models use 77 as the context length
+#         Parameters
+#         ----------
+#         texts : Union[str, List[str]]
+#             An input string or a list of input strings to tokenize
+#         context_length : int
+#             The context length to use; all CLIP models use 77 as the context length
 
-        Returns
-        -------
-        A two-dimensional tensor containing the resulting tokens, shape = [number of input strings, context_length]
-        """
-        if isinstance(texts, str):
-            texts = [texts]
+#         Returns
+#         -------
+#         A two-dimensional tensor containing the resulting tokens, shape = [number of input strings, context_length]
+#         """
+#         if isinstance(texts, str):
+#             texts = [texts]
 
-        context_length = context_length or self.context_length
-        assert context_length, "Please set a valid context length"
+#         context_length = context_length or self.context_length
+#         assert context_length, "Please set a valid context length"
 
-        if self.reduction_fn is not None:
-            # use reduction strategy for tokenize if set, otherwise default to truncation below
-            return self.reduction_fn(
-                texts,
-                context_length=context_length,
-                sot_token_id=self.sot_token_id,
-                eot_token_id=self.eot_token_id,
-                encode_fn=self.encode,
-            )
+#         if self.reduction_fn is not None:
+#             # use reduction strategy for tokenize if set, otherwise default to truncation below
+#             return self.reduction_fn(
+#                 texts,
+#                 context_length=context_length,
+#                 sot_token_id=self.sot_token_id,
+#                 eot_token_id=self.eot_token_id,
+#                 encode_fn=self.encode,
+#             )
 
-        all_tokens = [
-            [self.sot_token_id] + self.encode(text) + [self.eot_token_id]
-            for text in texts
-        ]
-        result = np.zeros((len(all_tokens), context_length), dtype=np.int32)
+#         all_tokens = [
+#             [self.sot_token_id] + self.encode(text) + [self.eot_token_id]
+#             for text in texts
+#         ]
+#         result = np.zeros((len(all_tokens), context_length), dtype=np.int32)
 
-        for i, tokens in enumerate(all_tokens):
-            if len(tokens) > context_length:
-                tokens = tokens[:context_length]  # Truncate
-                tokens[-1] = self.eot_token_id
-            result[i, : len(tokens)] = np.array(tokens)
+#         for i, tokens in enumerate(all_tokens):
+#             if len(tokens) > context_length:
+#                 tokens = tokens[:context_length]  # Truncate
+#                 tokens[-1] = self.eot_token_id
+#             result[i, : len(tokens)] = np.array(tokens)
 
-        return result
+#         return result
 
 class ONNXRuntimeSession:
     def __init__(self, model_path: str, mode = "text", providers: Optional[list] = None):
@@ -146,14 +146,14 @@ class VideoClasifierONNX:
 
         self.video_model = ONNXRuntimeSession("pecore_b16_224_sim.onnx",mode="image")
         #self.video_model = ONNXRuntimeSession("PE-Core-B16-224.onnx",mode="image")
-        self.text_model = ONNXRuntimeSession("text_PE-Core-B16-224.onnx")
+        # self.text_model = ONNXRuntimeSession("text_PE-Core-B16-224.onnx")
         self.img_size = (224,224) 
         self.context_length = 32 
         self.patch_size = (14,14)
 
         self.frame_bank_size = 8
         self.preprocess = ImagePreprocessor(self.img_size)
-        self.tokenizer = CustomTokenizer(self.context_length)
+        # self.tokenizer = CustomTokenizer(self.context_length)
         self.labels = None
         self.text_label = None
         self.frames_bank = []
@@ -162,10 +162,11 @@ class VideoClasifierONNX:
 
     def encode_labes(self, labels:List[str]):
         self.text_label = labels
-        tokenized_labels = self.tokenizer(labels)
-        encoded_labels = self.text_model(tokenized_labels)["text_features"]
-        self.labels = encoded_labels / np.linalg.norm(encoded_labels, axis=-1, keepdims=True)
-        del self.text_model
+        # tokenized_labels = self.tokenizer(labels)
+        # encoded_labels = self.text_model(tokenized_labels)["text_features"]
+        # self.labels = encoded_labels / np.linalg.norm(encoded_labels, axis=-1, keepdims=True)
+        self.labels = np.load("labels.npy").astype(np.float32)
+        # del self.text_model
     
     def process_frame(self,frame:np.ndarray):
         # image_tensors = self.preprocess(rgb_image).unsqueeze(0).cpu().numpy()
@@ -210,7 +211,7 @@ class VideoClasifierONNX:
         
         bbox, filtered_map = improved_bbox_extraction(
                 selected_attention_resized, 
-                percentile_threshold=90, # Higher threshold for more precise localization
+                percentile_threshold=80, # Higher threshold for more precise localization
                 method="best_region"
             )
         
