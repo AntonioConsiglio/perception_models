@@ -13,6 +13,7 @@ import numpy as np
 import torch.nn.functional as F
 from typing import List, Dict, Tuple, Optional, Union
 import onnxruntime as ort
+from tensorrt_engine import TRTEngineManager
 
 class ImagePreprocessor:
     def __init__(self, image_size, interpolation=cv2.INTER_LINEAR):
@@ -144,7 +145,7 @@ def improved_bbox_extraction(
 class VideoClasifierONNX:
     def __init__(self,model_name):
 
-        self.video_model = ONNXRuntimeSession("pecore_b16_224_sim.onnx",mode="image")
+        self.video_model = TRTEngineManager("pecore_b16_224_sim.engine")
         #self.video_model = ONNXRuntimeSession("PE-Core-B16-224.onnx",mode="image")
         # self.text_model = ONNXRuntimeSession("text_PE-Core-B16-224.onnx")
         self.img_size = (224,224) 
@@ -171,8 +172,9 @@ class VideoClasifierONNX:
     def process_frame(self,frame:np.ndarray):
         # image_tensors = self.preprocess(rgb_image).unsqueeze(0).cpu().numpy()
         image_tensors = self.preprocess(frame)
-        output = self.video_model(image_tensors)
-        frame_features, patch = output["features"], output["patch"]
+        # output = self.video_model(image_tensors)
+        # frame_features, patch = output["features"], output["patch"]
+        frame_features, patch = self.video_model.do_inference(image_tensors)
         self.update_frames_bank(frame_features,patch)
         
     def get_label_propabibility(self):
